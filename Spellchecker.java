@@ -22,7 +22,7 @@ class SpellChecker
 		}
 		
 		buildFile(fileName);
-		ArrayList<String> testDictionary = readinFileContents(fileName);
+		ArrayList<String> testDictionary = getFileContents(fileName);
 		
 		boolean searchNeeded = true;
 		do
@@ -64,12 +64,13 @@ class SpellChecker
 		  writer.close();
 
 		} catch (FileNotFoundException failedLookup) {
-			System.out.println("Failed to make the text file.");
+			System.out.println("Failed to find the file,"
+							   + " " + "which serves as a parameter"
+							   + " " + "to the print writer object.");
 		}
-		
 	}
 	
-	public static ArrayList<String> readinFileContents(String fileName)
+	public static ArrayList<String> getFileContents(String fileName)
 	{
 		ArrayList<String> contents = new ArrayList<>();
 		try
