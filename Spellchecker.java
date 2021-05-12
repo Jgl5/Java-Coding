@@ -1,97 +1,178 @@
-// demonstration program to show basic file I/O techniques
-// NOTE: program does not prevent overwriting file that already exist with the same name
+
 // CS II, Hood College
 // By Jesus Lopez
 
-import java.util.Scanner;
 import java.io.*;
+import java.util.Scanner;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.TreeSet;
 
 class SpellChecker
 {
 	public static void main(String[] args)
 	{
-		Scanner input = new Scanner(System.in);
-		System.out.print("\nEnter a name for the dictionary file:\t");
-		String fileName = input.nextLine();
+
+		ArrayList<String> dictionary = makeDictionaryFromFile("default.txt");
+		String[] parsedLines = parseDocumentIntoLines("test-document.txt");
+
+		TST tree = new TST();
 		
-		String textFileExtension = ".txt";
-		if (!(fileName.contains(textFileExtension))) 
+		for(String word: dictionary)										
+			tree.loadIntoTree(word);
+		
+		for (int index = 0; index < parsedLines.length; index++)
 		{
-			fileName = fileName + textFileExtension;
-		}
-		
-		buildFile(fileName);
-		ArrayList<String> testDictionary = getFileContents(fileName);
-		
-		boolean searchNeeded = true;
-		do
-		{
-			System.out.print("\nEnter 'stop' to exit the program,"
-							  + " " + "or enter a search term:\t");
-			String searchTerm = input.nextLine().toLowerCase();
-			
-			if (testDictionary.contains(searchTerm)) 
+			String individualLine = parsedLines[index];
+			String[] wordsInLine = individualLine.split("\\s");	
+
+			for(String word: wordsInLine)
 			{
-				int wordPosition = findWordIndex(searchTerm, testDictionary);
-				System.out.print("The word" + " " + "'" + searchTerm + "'" + " ");
-				System.out.printf("was found at position: %d", wordPosition);
-				
-			} else if (searchTerm.equals("stop")) {
-				
-				searchNeeded = false;
-				System.out.println("Bye!");
-			} else{
-				System.out.println("Sorry, that word is not in the dictionary");
-			}
-		} while (searchNeeded);
+				if(word.equals(""))
+						continue;	// patch to avoid exception error
+				if((tree.contains(word.toLowerCase())) != true)
+				{
+					int lineNumber = index +1;
+					reportUnrecognizedWords(word, lineNumber);	
+				}								
+			}	}
 	}
-	/* PROGRAM END */
-	///////////////////////////////////////////////////////////////////////////////
-	public static void buildFile(String dictionaryName)
+
+	/* STATIC METHODS BELOW */
+	public static String[] parseDocumentIntoLines(String fileName)
 	{
-		String[] initialWords = {"apple","bear","cat",
-								 "dog","egg","file", 
-								 "google","hello",
-								 "iphone","jeep"};
+
+		ArrayList<String> parsedLines = new ArrayList<String>();
+
 		try 
 		{
-		  PrintWriter writer = new PrintWriter(dictionaryName);
-		  for (int term = 0; term < initialWords.length; term++)
-		  {
-			writer.printf("%s\n", initialWords[term]);
-		  }
-		  writer.close();
+			FileInputStream fstream = new FileInputStream(fileName);
+			BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
-		} catch (FileNotFoundException failedLookup) {
-			System.out.println("Failed to find the file,"
-							   + " " + "which serves as a parameter"
-							   + " " + "to the print writer object.");
+
+			String currentLine;
+			while((currentLine = br.readLine()) != null)  
+			{  
+				String[] tokens = currentLine.split("\\n|\\.|\\?|\\!|\\;|\\:|\\,");
+				for(int wordPosition = 0; wordPosition < tokens.length; wordPosition++)
+					tokens[wordPosition] = tokens[wordPosition].trim();
+				for (String line: tokens)							
+					parsedLines.add(line);
+			}  
+			br.close();  
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+
+		String[] array = parsedLines.toArray(new String[0]);
+		return array;
 	}
-	
-	public static ArrayList<String> getFileContents(String fileName)
+
+	/* STATIC METHODS */
+
+	public static void reportUnrecognizedWords(String word, int lineNumber)
+	{ 
+		String msg = "The word '" + word + "' at Line " + lineNumber + " is unrecognized";
+		System.out.println(msg);
+	}
+
+	public static ArrayList<String> makeDictionaryFromFile(String fileName)
 	{
 		ArrayList<String> contents = new ArrayList<>();
 		try
 		{
 			File dictionary = new File(fileName);
 			Scanner reader = new Scanner(dictionary);
-			
+
 			while (reader.hasNextLine())
 			{
 				contents.add(reader.nextLine());
 			}
-			
+			reader.close();
+
 		} catch (FileNotFoundException failedLookup){
 			System.out.println("Failed to find the dictionary file.");
 		}
 		return contents;
 	}
-	
-	public static int findWordIndex(String searchTarget, ArrayList<String> dictionary)
+
+}	
+
+/* INNER CLASSES BELOW */
+
+class TSTNode 
+{
+
+	char c;
+	boolean treeEnd;
+	TSTNode leftChild, middleChild, rightChild;
+
+	public TSTNode(char data)
 	{
-		int wordPosition = 0;
-		return wordPosition = dictionary.indexOf(searchTarget);
-	}				
+		this.c = data;
+		this.treeEnd = false;
+		this.leftChild = null;
+		this.middleChild = null;
+		this.rightChild = null;
+	}
 }
+
+class TST 
+{
+	private TSTNode	root;
+
+	// default constructor
+	public TST()
+	{
+		root = null;
+	}
+
+	// encapsulation 
+	public boolean contains(String word)
+	{
+		return contains(word, root, 0);			// mirroring TST implementation slide
+	}
+
+	private boolean contains(String word, TSTNode x, int pos)	// mirroring TST implementation slide
+	{
+		//base case
+		if (x == null)
+			return false;
+
+		char c = word.charAt(pos);
+
+		if (c < x.c) 
+			return contains(word, x.leftChild, pos);		// less than case
+		else if (c > x.c) 
+			return contains(word, x.rightChild, pos);		// greater than case
+		else if (pos < word.length()-1) 
+			return contains(word, x.middleChild, pos+1);	// equality case
+		else 
+			return x.treeEnd;								// termination point
+	}
+	
+	// encapsulation
+	public void loadIntoTree(String word)
+	{ 
+		root = addToTree(root, word, 0); 
+	}
+
+	private TSTNode addToTree(TSTNode x, String word, int index)
+	{
+		char c = word.charAt(index);
+		if (x == null) 
+			x = new TSTNode(c);
+		if (c < x.c) 
+			x.leftChild = addToTree(x.leftChild, word, index);
+		else if (c > x.c) 
+			x.rightChild = addToTree(x.rightChild, word, index);
+		else if (index < word.length()-1) 
+			x.middleChild = 	addToTree(x.middleChild, word, index+1);
+		else 
+			x.treeEnd = true;
+		return x;
+	}
+
+}
+
